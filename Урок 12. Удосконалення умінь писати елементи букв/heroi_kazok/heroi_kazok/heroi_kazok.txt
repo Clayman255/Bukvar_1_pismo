@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Знайди пару. Герої казок</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #fdf5e6; /* Світло-бежевий фон, більш казковий */
+      text-align: center;
+      margin-top: 30px;
+    }
+    h2 {
+      color: #5d4037; /* Коричневий колір заголовка */
+      font-size: 2em;
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    .game-board {
+      display: grid;
+      /* 5 колонок, 4 ряди = 20 карток */
+      grid-template-columns: repeat(5, 120px);
+      grid-template-rows: repeat(4, 120px);
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    .card {
+      width: 120px;
+      height: 120px;
+      position: relative;
+      cursor: pointer;
+      perspective: 1000px;
+    }
+    .card-inner {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .card-front {
+      background-color: #8d6e63; /* Коричнева сорочка з візерунком */
+      background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2H0v-2h20v-2H0V8h20V6H0V4h20V2H0V0h22v20h2V0h2v20h2V0h2v20h2V0h2v20h2v2H20v-1.5zM0 20h2v20H0V20zm4 0h2v20H4V20zm4 0h2v20H8V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20z' fill='%23a1887f' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+      z-index: 2;
+      border: 3px solid #d7ccc8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 40px;
+      color: #efebe9;
+    }
+    /* Додамо іконку книги на сорочку */
+    .card-front::after {
+        content: '📖';
+    }
+    .card-back {
+      transform: rotateY(180deg);
+      background-color: white;
+      border: 2px solid #8d6e63;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .card-back img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    /* Ефект співпадіння */
+    .matched .card-inner .card-back {
+      box-shadow: 0 0 15px 5px #ffb300; /* Золоте світіння */
+      border-color: #ff8f00;
+    }
+
+    /* Зникнення */
+    .hidden {
+      animation: zoomOut 0.8s forwards;
+      pointer-events: none;
+    }
+    @keyframes zoomOut {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    .success-message {
+      font-size: 28px;
+      color: #388e3c;
+      font-weight: bold;
+      display: none;
+      margin-bottom: 20px;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .success-message.visible {
+      display: block;
+    }
+
+    .restart-btn {
+      padding: 12px 24px;
+      font-size: 20px;
+      background-color: #5d4037;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 4px 0 #3e2723;
+      transition: transform 0.1s, background-color 0.2s;
+    }
+    .restart-btn:active {
+      transform: translateY(4px);
+      box-shadow: none;
+    }
+    .restart-btn:hover {
+      background-color: #6d4c41;
+    }
+
+    /* Адаптивність для мобільних */
+    @media (max-width: 700px) {
+      .game-board {
+        grid-template-columns: repeat(4, 80px);
+        grid-template-rows: repeat(5, 80px);
+        gap: 10px;
+      }
+      .card {
+        width: 80px;
+        height: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h2>Знайди пару. Герої казок 📖</h2>
+<div class="game-board" id="gameBoard"></div>
+
+<div class="success-message" id="successMessage">🎉 Чудово! Всіх героїв знайдено!</div>
+<button class="restart-btn" id="restartBtn">Зіграти ще раз</button>
+
+<script>
+  const totalPairs = 10; // 10 пар = 20 карток
+  let cardsData = [];
+
+  function generateCardsData() {
+    let temp = [];
+    // Використовуємо зображення від Img_0.png до Img_9.png
+    for (let i = 0; i < totalPairs; i++) {
+      // Додаємо дві однакові картки для пари
+      temp.push({
+        id: i, // Унікальний ID пари
+        img: `Img_${i}.png`
+      });
+      temp.push({
+        id: i,
+        img: `Img_${i}.png`
+      });
+    }
+    return temp;
+  }
+
+  let cards = []; 
+  let flippedCards = []; 
+  let lockBoard = false;
+  let matchedCount = 0;
+
+  const gameBoard = document.getElementById('gameBoard');
+  const successMessage = document.getElementById('successMessage');
+  const restartBtn = document.getElementById('restartBtn');
+
+  function createCards() {
+    cards = generateCardsData();
+    cards.sort(() => 0.5 - Math.random()); // Перемішуємо
+    
+    gameBoard.innerHTML = '';
+    matchedCount = 0;
+    successMessage.classList.remove('visible');
+    restartBtn.style.display = 'none';
+
+    cards.forEach((item) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.dataset.pairId = item.id; 
+
+      card.innerHTML = `
+        <div class="card-inner">
+          <div class="card-front"></div>
+          <div class="card-back">
+            <img src="${item.img}" alt="Казковий герой">
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => handleCardClick(card));
+      gameBoard.appendChild(card);
+    });
+  }
+
+  function handleCardClick(card) {
+    if (lockBoard || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+
+    card.classList.add('flipped');
+    flippedCards.push(card);
+
+    if (flippedCards.length === 2) {
+      lockBoard = true;
+      const [card1, card2] = flippedCards;
+      
+      const isMatch = card1.dataset.pairId === card2.dataset.pairId;
+
+      if (isMatch) {
+        setTimeout(() => {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+        }, 300);
+
+        setTimeout(() => {
+          card1.classList.add('hidden');
+          card2.classList.add('hidden');
+          
+          resetBoard();
+          matchedCount += 2;
+          
+          if (matchedCount === cards.length) {
+            showSuccess();
+          }
+        }, 1500); 
+
+      } else {
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+          resetBoard();
+        }, 1000);
+      }
+    }
+  }
+
+  function resetBoard() {
+    flippedCards = [];
+    lockBoard = false;
+  }
+
+  function showSuccess() {
+    successMessage.classList.add('visible');
+    restartBtn.style.display = 'inline-block';
+  }
+
+  restartBtn.addEventListener('click', createCards);
+
+  // Запуск гри
+  createCards();
+</script>
+
+</body>
+</html>

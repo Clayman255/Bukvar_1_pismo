@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Знайди пару</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      margin-top: 30px;
+    }
+    h2 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 100px);
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 30px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .card {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      cursor: pointer;
+      perspective: 1000px;
+      background-color: transparent;
+    }
+    .card-inner {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border: 2px solid #ccc;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    /* Стиль передньої частини картки (сорочка) */
+    .card-front {
+      background-color: #FFD700;
+      /* Додаємо легкий візерунок, щоб картка не була просто "голою" жовтою */
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.3) 10px, rgba(255,255,255,0.3) 20px);
+      z-index: 2;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+      background-color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .card-back img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .matched .card-inner {
+      box-shadow: 0 0 15px 5px limegreen;
+    }
+    .hidden {
+      animation: fadeOut 0.8s forwards;
+      pointer-events: none;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: scale(0.8); visibility: hidden; }
+    }
+    .success-message {
+      font-size: 28px;
+      font-weight: bold;
+      color: #2e7d32;
+      display: none;
+      margin-bottom: 20px;
+      animation: popIn 0.5s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .success-message.visible {
+      display: block;
+    }
+    .restart-btn {
+      padding: 12px 25px;
+      font-size: 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: background-color 0.3s;
+    }
+    .restart-btn:hover {
+      background-color: #1b5e20;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Знайди пару</h2>
+<div class="game-board" id="gameBoard"></div>
+
+<div class="success-message" id="successMessage">🎉 Чудово! Всі пари знайдено!</div>
+<button class="restart-btn" id="restartBtn">Зіграти ще раз</button>
+
+<script>
+  const images = [
+    'Img_1.png', 
+    'Img_2.png', 
+    'Img_3.png', 
+    'Img_4.png', 
+    'Img_5.png', 
+    'Img_6.png', 
+    'Img_7.png', 
+    'Img_8.png'
+  ];
+  
+  let cards = [];
+  let flippedCards = [];
+  let lockBoard = false;
+  let matchedCount = 0;
+
+  const gameBoard = document.getElementById('gameBoard');
+  const successMessage = document.getElementById('successMessage');
+  const restartBtn = document.getElementById('restartBtn');
+
+  function createCards() {
+    cards = [...images, ...images];
+    cards.sort(() => 0.5 - Math.random());
+    
+    gameBoard.innerHTML = '';
+    matchedCount = 0;
+    flippedCards = [];
+    lockBoard = false;
+    successMessage.classList.remove('visible');
+    restartBtn.style.display = 'none';
+
+    cards.forEach((img) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.dataset.image = img;
+
+      // Тут прибрано ❓ з div class="card-front"
+      card.innerHTML = `
+        <div class="card-inner">
+          <div class="card-front"></div>
+          <div class="card-back">
+            <img src="${img}" alt="Картинка гри">
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => handleCardClick(card));
+      gameBoard.appendChild(card);
+    });
+  }
+
+  function handleCardClick(card) {
+    if (lockBoard || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+
+    card.classList.add('flipped');
+    flippedCards.push(card);
+
+    if (flippedCards.length === 2) {
+      lockBoard = true;
+      const [card1, card2] = flippedCards;
+      const isMatch = card1.dataset.image === card2.dataset.image;
+
+      if (isMatch) {
+        setTimeout(() => {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+        }, 300);
+
+        setTimeout(() => {
+          card1.classList.add('hidden');
+          card2.classList.add('hidden');
+          flippedCards = [];
+          lockBoard = false;
+          matchedCount += 2;
+          
+          if (matchedCount === cards.length) {
+            showSuccess();
+          }
+        }, 1500); 
+      } else {
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+          flippedCards = [];
+          lockBoard = false;
+        }, 1000);
+      }
+    }
+  }
+
+  function showSuccess() {
+    successMessage.classList.add('visible');
+    restartBtn.style.display = 'inline-block';
+  }
+
+  restartBtn.addEventListener('click', createCards);
+
+  createCards();
+</script>
+
+</body>
+</html>

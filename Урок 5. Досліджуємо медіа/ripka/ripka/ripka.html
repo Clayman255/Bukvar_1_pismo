@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Встанови послідовність. Казка "Ріпка"</title>
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --secondary: #10b981;
+            --bg: #fffbeb;
+            --slot-bg: #e5e7eb;
+            --text: #374151;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Verdana', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #d97706;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        /* Ігрове поле */
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Відступ між секціями */
+            width: 100%;
+            max-width: 1200px;
+            align-items: center;
+        }
+
+        /* Ряд слотів (куди вставляти) */
+        .slots-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            border: 3px dashed #cbd5e1;
+            min-height: 192px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .slot {
+            width: 132px;
+            height: 132px;
+            background-color: var(--slot-bg);
+            border-radius: 14px;
+            border: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            font-size: 29px;
+            font-weight: bold;
+            color: #9ca3af;
+            transition: all 0.3s;
+        }
+
+        /* Номери слотів */
+        .slot::before {
+            content: attr(data-index);
+            position: absolute;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        .slot.locked {
+            background-color: #fde68a;
+            border-color: #d97706;
+        }
+
+        .slot.drag-over {
+            background-color: #d1fae5;
+            border-color: var(--secondary);
+            transform: scale(1.05);
+        }
+
+        .slot.correct {
+            border-color: var(--secondary);
+            background-color: #d1fae5;
+        }
+        
+        .slot.wrong {
+            border-color: #ef4444;
+            background-color: #fee2e2;
+            animation: shake 0.4s;
+        }
+
+        /* Ряд картинок (звідки брати) */
+        .images-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 25px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-height: 168px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Самі картинки */
+        .draggable-item {
+            width: 120px;
+            height: 120px;
+            cursor: grab;
+            border-radius: 12px;
+            padding: 6px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        .draggable-item.fixed-item {
+            cursor: default;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        .draggable-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .draggable-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+        }
+
+        /* Кнопки */
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px; /* Відступ від пулу картинок */
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 14px 28px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-check {
+            background-color: var(--secondary);
+            color: white;
+            box-shadow: 0 4px 0 #059669;
+        }
+
+        .btn-reset {
+            background-color: #facc15; /* Жовтий */
+            color: #713f12; /* Темно-коричневий текст */
+            box-shadow: 0 4px 0 #ca8a04; /* Темно-жовта тінь */
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Повідомлення про перемогу */
+        #message {
+            margin-top: 5px;
+            font-size: 1.6em;
+            font-weight: bold;
+            height: 35px;
+            text-align: center;
+        }
+        .success-msg { color: var(--secondary); }
+        .error-msg { color: #ef4444; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Адаптивність */
+        @media (max-width: 650px) {
+            .slot, .draggable-item {
+                width: 84px;
+                height: 84px;
+                font-size: 19px;
+            }
+            .slots-container {
+                gap: 8px;
+            }
+            h1 { font-size: 1.5em; }
+            button {
+                padding: 10px 20px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Встанови послідовність. Казка "Ріпка"</h1>
+
+    <div class="game-board">
+        <div class="slots-container" id="slots-area"></div>
+
+        <div class="images-pool" id="pool-area"></div>
+        
+        <div class="controls">
+            <button class="btn-check" onclick="checkOrder()">✅ Перевірити</button>
+            <button class="btn-reset" onclick="initGame()">🔄 Знову</button>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+<script>
+    // КОНФІГУРАЦІЯ
+    const gameData = [
+        { id: 1, src: "Img_1.png", alt: "Ріпка" },
+        { id: 2, src: "Img_2.png", alt: "Дід" },
+        { id: 3, src: "Img_3.png", alt: "Баба" },
+        { id: 4, src: "Img_4.png", alt: "Онучка" },
+        { id: 5, src: "Img_5.png", alt: "Жучка" },
+        { id: 6, src: "Img_6.png", alt: "Кішка" },
+        { id: 7, src: "Img_7.png", alt: "Мишка" }
+    ];
+
+    const slotsArea = document.getElementById('slots-area');
+    const poolArea = document.getElementById('pool-area');
+    const messageEl = document.getElementById('message');
+
+    let draggedItem = null;
+
+    // Ініціалізація гри
+    function initGame() {
+        slotsArea.innerHTML = '';
+        poolArea.innerHTML = '';
+        messageEl.innerText = '';
+        messageEl.className = '';
+
+        // 1. Створення слотів (1-7)
+        for (let i = 1; i <= gameData.length; i++) {
+            const slot = document.createElement('div');
+            slot.classList.add('slot');
+            slot.setAttribute('data-index', i); 
+            slot.setAttribute('data-expected', i); 
+            
+            // ЛОГІКА ДЛЯ ПЕРШОГО ЕЛЕМЕНТА (РІПКА)
+            if (i === 1) {
+                const fixedItem = document.createElement('div');
+                fixedItem.classList.add('draggable-item', 'fixed-item');
+                fixedItem.setAttribute('data-id', 1);
+
+                const img = document.createElement('img');
+                img.src = gameData[0].src;
+                img.alt = gameData[0].alt;
+                
+                fixedItem.appendChild(img);
+                slot.appendChild(fixedItem);
+                slot.classList.add('locked'); 
+            } else {
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('dragleave', handleDragLeave);
+                slot.addEventListener('drop', handleDrop);
+                slot.addEventListener('click', () => handleSlotClick(slot));
+            }
+
+            slotsArea.appendChild(slot);
+        }
+
+        // 2. Створення картинок для пулу (ВСІ КРІМ 1-го)
+        const poolItems = gameData.filter(item => item.id !== 1);
+        
+        // Перемішуємо
+        const shuffledData = [...poolItems].sort(() => Math.random() - 0.5);
+
+        shuffledData.forEach(item => {
+            const div = document.createElement('div');
+            div.classList.add('draggable-item');
+            div.setAttribute('draggable', 'true');
+            div.setAttribute('data-id', item.id);
+            
+            const img = document.createElement('img');
+            img.src = item.src;
+            img.alt = item.alt;
+            
+            div.appendChild(img);
+
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            div.addEventListener('click', (e) => handleItemClick(e, div));
+
+            poolArea.appendChild(div);
+        });
+    }
+
+    // --- DRAG AND DROP ЛОГІКА ---
+
+    function handleDragStart(e) {
+        draggedItem = this;
+        setTimeout(() => this.classList.add('dragging'), 0);
+    }
+
+    function handleDragEnd() {
+        this.classList.remove('dragging');
+        draggedItem = null;
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('drag-over'));
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        if (!this.querySelector('.draggable-item')) {
+            this.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave() {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        if (!this.querySelector('.draggable-item') && draggedItem) {
+            this.appendChild(draggedItem);
+            resetValidationStyles(); 
+        }
+    }
+
+    // --- ЛОГІКА ДЛЯ КЛІКІВ (МОБІЛЬНІ) ---
+    
+    let selectedItem = null;
+
+    function handleItemClick(e, item) {
+        e.stopPropagation(); 
+        
+        if (selectedItem === item) {
+            item.style.border = 'none';
+            selectedItem = null;
+            return;
+        }
+
+        if (selectedItem) {
+            selectedItem.style.border = 'none';
+        }
+
+        selectedItem = item;
+        item.style.border = '3px solid #3b82f6'; 
+    }
+
+    function handleSlotClick(slot) {
+        if (slot.classList.contains('locked')) return;
+
+        if (selectedItem && !slot.querySelector('.draggable-item')) {
+            slot.appendChild(selectedItem);
+            selectedItem.style.border = 'none';
+            selectedItem = null;
+            resetValidationStyles();
+        } 
+    }
+
+    poolArea.addEventListener('click', () => {
+        if (selectedItem) {
+            poolArea.appendChild(selectedItem);
+            selectedItem.style.border = 'none';
+            selectedItem = null;
+            resetValidationStyles();
+        }
+    });
+    
+    poolArea.addEventListener('dragover', (e) => { e.preventDefault(); poolArea.style.backgroundColor = '#f3f4f6'; });
+    poolArea.addEventListener('dragleave', () => { poolArea.style.backgroundColor = 'white'; });
+    poolArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        poolArea.style.backgroundColor = 'white';
+        if (draggedItem) {
+            poolArea.appendChild(draggedItem);
+            resetValidationStyles();
+        }
+    });
+
+    // --- ПЕРЕВІРКА ---
+
+    function resetValidationStyles() {
+        document.querySelectorAll('.slot').forEach(slot => {
+            slot.classList.remove('correct', 'wrong');
+        });
+        messageEl.innerText = '';
+    }
+
+    function checkOrder() {
+        const slots = document.querySelectorAll('.slot');
+        let correctCount = 0;
+        let isFull = true;
+
+        slots.forEach(slot => {
+            const item = slot.querySelector('.draggable-item');
+            const expectedId = slot.getAttribute('data-expected');
+
+            if (!item) {
+                isFull = false;
+                slot.classList.remove('correct', 'wrong');
+                return;
+            }
+
+            const itemId = item.getAttribute('data-id');
+
+            if (itemId === expectedId) {
+                slot.classList.add('correct');
+                slot.classList.remove('wrong');
+                correctCount++;
+            } else {
+                slot.classList.add('wrong');
+                slot.classList.remove('correct');
+            }
+        });
+
+        if (!isFull) {
+            messageEl.innerText = "Спочатку заповни всі комірки!";
+            messageEl.className = "error-msg";
+        } else if (correctCount === gameData.length) {
+            messageEl.innerText = "Молодець! Все правильно! 🎉";
+            messageEl.className = "success-msg";
+        } else {
+            messageEl.innerText = "Щось не так. Спробуй ще раз!";
+            messageEl.className = "error-msg";
+        }
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>

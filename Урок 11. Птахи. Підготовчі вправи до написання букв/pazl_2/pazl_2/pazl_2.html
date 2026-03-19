@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Склади пазл до казки "Івасик-Телесик"</title>
+    <style>
+        /* --- Основні стилі --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #e0f7fa; /* Світло-блакитний фон (річка) */
+            font-family: 'Comic Sans MS', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #006064;
+            margin: 10px 0;
+            z-index: 10;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        /* --- Контейнер гри (Ліво - Центр - Право) --- */
+        #game-layout {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 85vh;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Бічні панелі для шматочків */
+        .sidebar {
+            width: 230px;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.6);
+            border: 3px dashed #0097a7;
+            border-radius: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            justify-content: center;
+            padding: 15px 5px;
+            overflow-y: auto;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Центральне поле */
+        #center-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            flex-grow: 1;
+        }
+
+        #puzzle-board {
+            display: grid;
+            /* 4 колонки по 200px = 800px */
+            grid-template-columns: repeat(4, 1fr);
+            /* 3 ряди по 150px = 450px */
+            grid-template-rows: repeat(3, 1fr);
+            width: 800px;
+            height: 450px;
+            border: 3px solid #006064;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            position: relative;
+            background-color: white;
+        }
+
+        /* ПІДКАЗКА: Напівпрозоре зображення на фоні дошки */
+        #puzzle-board::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('1.png');
+            background-size: 800px 450px;
+            background-repeat: no-repeat;
+            opacity: 0.25;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Слоти (клітинки) на дошці */
+        .slot {
+            border: 1px dotted rgba(0, 96, 100, 0.3); 
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .slot.hovered {
+            background-color: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4CAF50;
+        }
+
+        /* --- Шматочок пазла --- */
+        .puzzle-piece {
+            width: 200px;  /* 800px / 4 */
+            height: 150px; /* 450px / 3 */
+            background-image: url('1.png');
+            background-repeat: no-repeat;
+            cursor: grab;
+            transition: transform 0.1s, box-shadow 0.1s;
+            border-radius: 8px;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            margin: 5px;
+        }
+
+        /* Коли шматочок на дошці */
+        .slot .puzzle-piece {
+            margin: 0;
+            border-radius: 0;
+            box-shadow: none;
+            cursor: grab;
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+            z-index: 100;
+        }
+
+        /* --- Повідомлення про перемогу --- */
+        #success-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.98);
+            padding: 30px 50px;
+            border-radius: 20px;
+            border: 4px solid #4CAF50;
+            text-align: center;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 200;
+        }
+
+        #success-message h2 {
+            color: #4CAF50;
+            font-size: 2.5rem;
+            margin: 0;
+        }
+
+        /* Адаптивність */
+        @media (max-width: 1300px) {
+            #game-layout {
+                flex-wrap: wrap;
+                height: auto;
+                justify-content: center;
+            }
+            .sidebar {
+                width: 45%;
+                height: 180px;
+                margin-bottom: 10px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+            }
+            #center-area {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Склади пазл до казки "Івасик-Телесик"</h1>
+
+    <div id="game-layout">
+        <div id="left-sidebar" class="sidebar" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+
+        <div id="center-area">
+            <div id="puzzle-board">
+            </div>
+            
+            <div id="success-message">
+                <h2>Ура! Пазл складено!</h2>
+                <p>🌊🦢🛶</p>
+                <button onclick="location.reload()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 10px; border: none; background: #4CAF50; color: white;">Грати ще раз</button>
+            </div>
+        </div>
+
+        <div id="right-sidebar" class="sidebar" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <script>
+        // НАЛАШТУВАННЯ ДЛЯ 12 ЧАСТИН (3 ряди * 4 колонки)
+        const ROWS = 3;
+        const COLS = 4;
+        const TOTAL_PIECES = ROWS * COLS;
+        
+        const board = document.getElementById('puzzle-board');
+        const leftSidebar = document.getElementById('left-sidebar');
+        const rightSidebar = document.getElementById('right-sidebar');
+        const successMsg = document.getElementById('success-message');
+
+        function initGame() {
+            board.innerHTML = '';
+            leftSidebar.innerHTML = '';
+            rightSidebar.innerHTML = '';
+
+            // 1. Створюємо пусті слоти
+            for (let i = 0; i < TOTAL_PIECES; i++) {
+                const slot = document.createElement('div');
+                slot.classList.add('slot');
+                slot.setAttribute('data-slot-index', i);
+                
+                slot.ondrop = drop;
+                slot.ondragover = allowDrop;
+                slot.ondragenter = dragEnter;
+                slot.ondragleave = dragLeave;
+                
+                board.appendChild(slot);
+            }
+
+            // 2. Створюємо шматочки
+            let pieces = [];
+            for (let i = 0; i < TOTAL_PIECES; i++) {
+                pieces.push(createPiece(i));
+            }
+
+            // 3. Перемішуємо
+            pieces.sort(() => Math.random() - 0.5);
+
+            pieces.forEach((piece) => {
+                if (Math.random() < 0.5) {
+                    leftSidebar.appendChild(piece);
+                } else {
+                    rightSidebar.appendChild(piece);
+                }
+            });
+        }
+
+        function createPiece(index) {
+            const piece = document.createElement('div');
+            piece.classList.add('puzzle-piece');
+            piece.id = `piece-${index}`;
+            piece.setAttribute('draggable', 'true');
+            piece.setAttribute('data-index', index);
+            
+            const row = Math.floor(index / COLS);
+            const col = index % COLS;
+            
+            // Налаштування фону для 12 частин
+            piece.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
+            piece.style.backgroundPosition = `${col * (100 / (COLS - 1))}% ${row * (100 / (ROWS - 1))}%`;
+
+            piece.ondragstart = dragStart;
+            piece.onclick = handleTouchClick; 
+
+            return piece;
+        }
+
+        // --- Drag and Drop Functions ---
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function dragStart(ev) {
+            ev.dataTransfer.setData("text/plain", ev.target.id);
+            ev.dataTransfer.effectAllowed = "move";
+        }
+
+        function dragEnter(ev) {
+            if (ev.target.classList.contains('slot')) {
+                ev.target.classList.add('hovered');
+            }
+        }
+
+        function dragLeave(ev) {
+            if (ev.target.classList.contains('slot')) {
+                ev.target.classList.remove('hovered');
+            }
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const pieceId = ev.dataTransfer.getData("text/plain");
+            const piece = document.getElementById(pieceId);
+            
+            if (!piece) return;
+
+            let target = ev.target;
+            document.querySelectorAll('.slot.hovered').forEach(el => el.classList.remove('hovered'));
+
+            if (target.classList.contains('puzzle-piece')) {
+                target = target.parentElement;
+            }
+
+            if (target.classList.contains('slot')) {
+                if (target.children.length === 0) {
+                    target.appendChild(piece);
+                    checkWin();
+                }
+            } 
+            else if (target.classList.contains('sidebar')) {
+                target.appendChild(piece);
+            }
+        }
+
+        // --- Tap / Click Logic ---
+        let selectedPiece = null;
+
+        function handleTouchClick(e) {
+            const piece = e.currentTarget;
+
+            if (selectedPiece === piece) {
+                piece.style.outline = "none";
+                selectedPiece = null;
+            } else {
+                if (selectedPiece) selectedPiece.style.outline = "none";
+                selectedPiece = piece;
+                piece.style.outline = "4px solid #ff9800";
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!selectedPiece) return;
+            if (e.target === selectedPiece || selectedPiece.contains(e.target)) return;
+
+            let target = e.target;
+            if (target.classList.contains('puzzle-piece')) return;
+
+            if (target.classList.contains('slot') && target.children.length === 0) {
+                target.appendChild(selectedPiece);
+                selectedPiece.style.outline = "none";
+                selectedPiece = null;
+                checkWin();
+            }
+            else if (target.classList.contains('sidebar')) {
+                target.appendChild(selectedPiece);
+                selectedPiece.style.outline = "none"; 
+                selectedPiece = null;
+            }
+        });
+
+        function checkWin() {
+            const slots = document.querySelectorAll('.slot');
+            let correctCount = 0;
+            let totalFilled = 0;
+
+            slots.forEach(slot => {
+                if (slot.children.length > 0) {
+                    totalFilled++;
+                    const piece = slot.children[0];
+                    const slotIndex = parseInt(slot.getAttribute('data-slot-index'));
+                    const pieceIndex = parseInt(piece.getAttribute('data-index'));
+                    
+                    if (slotIndex === pieceIndex) {
+                        correctCount++;
+                    }
+                }
+            });
+
+            if (totalFilled === TOTAL_PIECES && correctCount === TOTAL_PIECES) {
+                setTimeout(() => {
+                    successMsg.style.display = 'block';
+                    document.getElementById('puzzle-board').style.border = "none";
+                    document.getElementById('puzzle-board').style.boxShadow = "none";
+                    document.querySelectorAll('.slot').forEach(s => s.style.border = "none");
+                    
+                    const style = document.createElement('style');
+                    style.innerHTML = '#puzzle-board::before { display: none; }';
+                    document.head.appendChild(style);
+                }, 300);
+            }
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
